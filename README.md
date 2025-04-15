@@ -34,7 +34,7 @@ Welcome to **SmartFleet**, an intelligent, dynamic bus allocation system powered
 
 ## 🌐 Live Demo
 
-🔗 [Click here to try the live simulation](https://trinitatd.github.io/smartfleet-simulator/)  
+🔗 [Click here to try the live simulation](https://trinitatd.github.io/smartfleet-simulation)  
 (*replace with your GitHub Pages link*)
 
 > **Microproject – Engineering Entrepreneurship & IPR**  

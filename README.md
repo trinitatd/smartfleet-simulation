@@ -39,7 +39,6 @@ Team: Group 3, IT '28
 
 ## 🏁 Future Plans
 
-- 🧠 Integrate seat sensors in real-time via IoT
 - 📱 Build a user-facing mobile app
 - 🌍 GPS-based stop tracking
 

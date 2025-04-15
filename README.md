@@ -11,9 +11,6 @@ Welcome to **SmartFleet**, an intelligent, dynamic bus allocation system powered
 - 🖥️ Live bus data visualization
 - 🎨 Beautiful UI with custom alerts
 
-## 📸 Preview
-
-![SmartFleet UI Preview](screenshot.png) <!-- Replace with actual screenshot name -->
 
 ## 🛠 Tech Stack
 

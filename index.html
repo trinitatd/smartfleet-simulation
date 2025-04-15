@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SmartFleet Multi-Bus Simulator</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      collection,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6Ng0mLwf9_P_E2YD1gjyLjoU1zWzMBgE",
+      authDomain: "smartfleetsim.firebaseapp.com",
+      projectId: "smartfleetsim",
+      storageBucket: "smartfleetsim.appspot.com",
+      messagingSenderId: "194330973229",
+      appId: "1:194330973229:web:ca09fbebf7b8c71e7e94a4"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const baseBuses = 10;
+    const maxSeats = 40;
+    let nextBusId = 11;
+    let activeBusPerRoute = {}; // Maps route -> current bus ID
+
+
+    // Simulate bus reaching the next stop
+    async function simulateStop(busId, routeId) {
+  const busRef = doc(db, "buses", busId);
+  const snapshot = await getDoc(busRef);
+  let currentData = snapshot.exists() ? snapshot.data() : {};
+
+  const currentSeats = currentData.seatsFilled || 0;
+
+  // ⛔ Prevent further updates if bus is already full
+  if (currentSeats >= maxSeats) {
+    showCustomAlert(`${busId} is already full. Click again to operate the new bus.`);
+    return;
+  }
+
+  let currentStopNumber = parseInt((currentData.currentStop || "Stop0").replace("Stop", ""));
+  if (isNaN(currentStopNumber)) currentStopNumber = 0;
+
+  let nextStopNumber = currentStopNumber + 1;
+  if (nextStopNumber > 10) nextStopNumber = 1;
+  const nextStop = "Stop" + nextStopNumber;
+
+  const passengersEntering = Math.floor(Math.random() * 5) + 1; // random between 1 and 5
+  const newSeatCount = Math.min(currentSeats + passengersEntering, maxSeats);
+
+  
+  await setDoc(busRef, {
+    route: routeId,
+    seatsFilled: newSeatCount,
+    currentStop: nextStop
+  }, { merge: true });
+
+  if (newSeatCount >= maxSeats) {
+    const newBusId = "bus" + nextBusId++;
+    const newBusRef = doc(db, "buses", newBusId);
+    await setDoc(newBusRef, {
+      route: routeId,
+      seatsFilled: 0,
+      currentStop: "Stop1"
+    });
+
+    // Update active bus mapping
+    activeBusPerRoute[routeId] = newBusId;
+
+    showCustomAlert(`${busId} is full! Dispatching ${newBusId} on ${routeId}`);
+  }
+}
+let simulationInterval = null;
+
+async function simulateAllBuses() {
+  if (simulationInterval) {
+    clearInterval(simulationInterval); // avoid stacking intervals
+  }
+
+  simulationInterval = setInterval(async () => {
+    for (const routeId in activeBusPerRoute) {
+      const activeBus = activeBusPerRoute[routeId];
+      await simulateStop(activeBus, routeId);
+    }
+  }, 3000); // every 3000ms = 3 seconds
+}
+
+window.simulateAllBuses = simulateAllBuses;
+
+
+
+function setupButtons() {
+  const controls = document.getElementById("controls");
+  controls.innerHTML = ""; // Clear any existing buttons (just in case)
+
+  // Simulate All Buses Button
+  const allBtn = document.createElement("button");
+  allBtn.innerText = "Start Simulation";
+  allBtn.onclick = simulateAllBuses;
+  controls.appendChild(allBtn);
+
+  // Reset Simulation Button
+  const resetBtn = document.createElement("button");
+  resetBtn.innerText = "Reset Simulation";
+  resetBtn.onclick = resetSimulation;
+  controls.appendChild(resetBtn);
+
+  const stopBtn = document.createElement("button");
+stopBtn.innerText = "Stop Simulation";
+stopBtn.onclick = stopSimulation;
+controls.appendChild(stopBtn);
+
+}
+function stopSimulation() {
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+    showCustomAlert("Simulation stopped.");
+  }
+}
+
+
+
+    import { deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+
+// Reset simulation: clears all buses and reinitializes base buses
+async function resetSimulation() {
+  const busesCollection = collection(db, "buses");
+  const snapshot = await getDocs(busesCollection);
+
+  // Delete all buses
+  for (const docSnap of snapshot.docs) {
+    await deleteDoc(doc(db, "buses", docSnap.id));
+  }
+
+  // Recreate base buses
+  for (let i = 1; i <= baseBuses; i++) {
+    const busId = "bus" + i;
+    const routeId = "route" + i;
+    const busRef = doc(db, "buses", busId);
+    await setDoc(busRef, {
+      route: routeId,
+      seatsFilled: 0,
+      currentStop: "Stop1"
+    });
+  }
+  activeBusPerRoute = {};
+for (let i = 1; i <= baseBuses; i++) {
+  activeBusPerRoute["route" + i] = "bus" + i;
+}
+
+
+  nextBusId = 11; // Reset the ID counter
+  showCustomAlert("Simulation has been reset!");
+}
+
+
+    // Live Firestore dashboard
+    function setupLiveDashboard() {
+  const busesCollection = collection(db, "buses");
+  const dashboard = document.getElementById("dashboard");
+
+  onSnapshot(busesCollection, (snapshot) => {
+    dashboard.innerHTML = "";
+
+    // ✅ Move sorting OUTSIDE the forEach
+    const sortedDocs = snapshot.docs.sort((a, b) => {
+      const idA = parseInt(a.id.replace("bus", ""));
+      const idB = parseInt(b.id.replace("bus", ""));
+      return idA - idB;
+    });
+
+    sortedDocs.forEach((doc) => {
+  const bus = doc.data();
+  const isFull = bus.seatsFilled >= maxSeats;
+
+  const div = document.createElement("div");
+  div.className = `bus-card ${isFull ? "full-bus" : ""}`;
+
+  div.innerHTML = `
+    <div class="bus-id">🚌 ${doc.id}</div>
+    <div class="route">📍 <strong>Route:</strong> ${bus.route}</div>
+    <div class="seats">👥 <strong>Seats Filled:</strong> ${bus.seatsFilled}/${maxSeats}</div>
+    <div class="stop">⏭️ <strong>Next Stop:</strong> ${bus.currentStop || "Not Set"}</div>
+    ${isFull ? "<div style='color: red; font-weight: bold;'>Bus is Full 🚫</div>" : ""}
+  `;
+  dashboard.appendChild(div);
+});
+
+  });
+}
+
+function showCustomAlert(message, type = "info") {
+  const alertElement = document.getElementById("customAlert");
+  const alertMessage = document.getElementById("alertMessage");
+  
+  alertMessage.innerText = message;
+  alertElement.classList.remove("success", "error", "info");
+  alertElement.classList.add(type);
+  alertElement.style.display = "flex";
+
+  // Auto close after 5 seconds
+  setTimeout(closeAlert, 5000);
+}
+
+function closeAlert() {
+  const alertElement = document.getElementById("customAlert");
+  alertElement.style.display = "none";
+}
+
+
+    // On load
+    window.onload = () => {
+      setupButtons();
+      setupLiveDashboard();
+    };
+    window.resetSimulation = resetSimulation;
+
+   </script>
+
+  <style>
+    html, body {
+  height: 100%;
+  }
+  
+  body {
+  min-height: 100vh; /* forces it to at least fill the viewport */
+  background: linear-gradient(180deg, #e0f7fa 0%, #a8e6cf 100%);
+
+  /* rest of your styles */
+  }
+
+   body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1, h2 {
+    color: #153816;
+    margin-bottom: 10px;
+  }
+
+  #controls {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  button {
+    background-color: #119716;
+    color: rgba(0, 9, 1, 0.904);
+    border: none;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  button:hover {
+    background-color: #d9e0da;
+  }
+
+  #dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .bus-card {
+    background-color: white;
+    border: none; /* Remove all default borders */
+    border-left: 6px solid #25d219; /* Only apply the left one */
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.908);
+   padding: 16px;
+   transition: transform 0.2s ease;
+  }
+
+
+  .bus-card:hover {
+    transform: scale(1.02);
+  }
+
+  .bus-id {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  .route {
+    color: #555;
+    margin-bottom: 4px;
+  }
+
+  .stop {
+    font-size: 14px;
+    margin-top: 6px;
+    color: #777;
+  }
+
+  .full-bus {
+    border-left-color: #2fd386;
+    background-color: #fff0f0;
+  }
+    
+  .site-footer {
+  background-color: #1c1c1c;
+  color: #e0e0e0;
+  padding: 24px 0;
+  text-align: center;
+  font-size: 14px;
+  margin-top: 40px;
+  border-top: 2px solid #0c4708;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.footer-content p {
+  margin: 6px 0;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  height: 50px;
+  width: auto;
+  border-radius: 8px;
+}
+.custom-alert {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: rgba(0, 0, 0, 0.4);
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.alert-content {
+  background: #fff;
+  padding: 24px 30px;
+  border-radius: 12px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  position: relative;
+  font-family: "Segoe UI", sans-serif;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.alert-content button {
+  background: #0a4106;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.alert-content button:hover {
+  background: #2b8a3e;
+}
+
+.alert-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.success .alert-content {
+  border-left: 6px solid #1c8033;
+  background: #e8f5e9;
+}
+
+.success .alert-icon {
+  color: #28a745;
+}
+
+.error .alert-content {
+  border-left: 6px solid #dc3545;
+  background: #fdecea;
+}
+
+.error .alert-icon {
+  color: #dc3545;
+}
+
+.info .alert-content {
+  border-left: 6px solid #109528;
+  background: #e7f1ff;
+}
+
+.info .alert-icon {
+  color: #0c5611;
+}
+
+.alert-message {
+  color: #333;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+
+
+</style>
+
+</head>
+<body>
+  <div class="header">
+    <img src="logo.jpg" alt="SmartFleet Logo" class="logo">
+    <h1>SmartFleet Multi-Bus Simulator</h1>
+    <br><br>
+    <div id="customAlert" class="custom-alert">
+      <div class="alert-content">
+        <span id="alertMessage"></span>
+        <button onclick="closeAlert()">Close</button>
+      </div>
+    </div>
+    
+  </div>
+  <br>
+  <div id="controls"></div>
+  <br>
+  <h2>Live Bus Dashboard</h2>
+  <div id="dashboard"></div><br>
+  <footer class="site-footer">
+    <div class="footer-content">
+      <p>&copy; 2025 SmartFleet Solutions. All rights reserved.<br>
+      Developed by Group 3 IT '28 GECBH<br>
+      Developed for Engineering Entrepreneurship & IPR Micro Project</p>
+    </div>
+  </footer>
+</body>
+
+</html>

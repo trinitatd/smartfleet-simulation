@@ -27,8 +27,6 @@ Welcome to **SmartFleet**, an intelligent, dynamic bus allocation system powered
 5. All activity is updated live on the dashboard.
 
 
-> ℹ️ Make sure to replace the Firebase config with your own if forking this project!
-
 ## 🌐 Live Demo
 
 🔗 [Click here to try the live simulation](https://trinitatd.github.io/smartfleet-simulation)  
@@ -47,6 +45,11 @@ Team: Group 3, IT '28
 ## 🤝 Credits
 
 Created by Group 3 
+Members:
+Abhirami SS
+Arya S
+Gauri Smiju
+Trinita T D
 © 2025 SmartFleet Solutions. All rights reserved.
 
 

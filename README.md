@@ -1,4 +1,5 @@
 # 🚌 SmartFleet Multi-Bus Simulator
+( Currently Inactive )
 
 Welcome to **SmartFleet**, an intelligent, dynamic bus allocation system powered by Firebase! This simulator is designed to emulate real-world public transportation logic—where buses automatically adjust based on occupancy and demand across multiple routes.
 
